@@ -108,3 +108,33 @@ button:focus-visible {
   bottom: 0;
   z-index: 5;
 }
+
+.chars-thumbnails {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: inline-flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  margin-top: 20px;
+  height: 60px;
+}
+
+.chars-thumbnails li {
+  width: 60px;
+  height: 60px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid #ffcb0a;
+  transition: all 0.15s ease-in-out;
+}
+
+.chars-thumbnails li:has(img.is-found) {
+  border: 2px solid #ffffff;
+}
+
+.chars-thumbnails li img { width: 100%; }
+
+.chars-thumbnails li img.is-found {
+  mix-blend-mode: luminosity;
+}

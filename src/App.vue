@@ -1,39 +1,74 @@
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useLoadChars, useGetDoc, useAddNewScore } from './firebase';
 
 export default {
   setup() {
     const state = ref('start');
-    const chars = ref([]);
+    const chars = ref({})
     const doc = ref(null);
     const mouseX = ref(0);
     const mouseY = ref(0);
     const showCharPicker = ref(false);
     const hit = ref(false);
+    const timer = ref(0);
 
-    onMounted(async () => {
-      chars.value = await useLoadChars();
+    let timerId = null;
+
+    const screenCoords = computed(() => {
+      return {
+        x: `${mouseX.value}px`,
+        y: `${mouseY.value}px`
+      };
     });
 
-    function updatePos(e) {
+    const activeChars = computed(() => {
+      return Object.entries(chars.value).filter(char => !char[1].found);
+    });
+
+    const getCharImageUrl = name => {
+      return new URL(`./assets/${name}.png`, import.meta.url).href
+    }
+
+    onMounted(async () => {
+      const set = await useLoadChars();
+      chars.value = set.reduce((a, v) => (
+        {...a,
+          [v.name]: {
+            pos: v.pos,
+            found: false,
+            description: v.description,
+          }
+        }), {});
+    });
+
+    function updatePos({offsetX, offsetY}) {
       showCharPicker.value = true;
-      const {offsetX, offsetY} = e;
-      const [x, y] = chars.value[0].mario
-      mouseX.value = `${offsetX}px`;
-      mouseY.value = `${offsetY}px`;
+      mouseX.value = offsetX;
+      mouseY.value = offsetY;
     }
 
     function checkChar(char){
-      if (chars.value[0]?.[char]) {
-        const [x, y] = chars.value[0][char];
-        const mX = +mouseX.value.replace('px', '');
-        const mY = +mouseY.value.replace('px', '');
-        const check = (x > mX - 40 && x < mX + 40) && (y > mY - 40 && y < mY + 40)
-        console.log(check);
+      if (chars.value?.[char]) {
+        const [x, y] = chars.value[char].pos;
+        const check = (x > mouseX.value - 40 && x < mouseX.value + 40)
+          && (y > mouseY.value - 40 && y < mouseY.value + 40)
         hit.value = check;
+        if (check) {
+          chars.value[char].found = true;
+        }
       }
       showCharPicker.value = false;
+    }
+
+    function startTimer() {
+      timerId = setInterval(() => {
+        timer.value++;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerId);
     }
 
     async function getDocument() {
@@ -50,11 +85,15 @@ export default {
       getDocument,
       addScore,
       updatePos,
-      mouseX,
-      mouseY,
       showCharPicker,
       checkChar,
+      startTimer,
+      stopTimer,
       hit,
+      timer,
+      screenCoords,
+      activeChars,
+      getCharImageUrl,
     };
   },
 }
@@ -62,35 +101,40 @@ export default {
 
 <template>
   <div>
-    <p>{{hit}}</p>
+    <ul class="chars-thumbnails">
+      <li v-for="(char, index) in Object.keys(chars)">
+        <img :class="{'is-found': chars[char].found}" :src="getCharImageUrl(char)" :key="index" />
+      </li>
+    </ul>
     <div class="image-container">
-      <template v-if="showCharPicker">
-        <div @click="showCharPicker = false" class="image-blocker"></div>
-        <div class="box" :style="`top: ${mouseY}; left: ${mouseX}`">
-          <button @click="checkChar('mario')">Mario</button>
+      <Transition>
+        <div v-if="showCharPicker">
+          <div @click="showCharPicker = false" class="image-blocker"></div>
+          <div class="box" :style="`top: ${screenCoords.y}; left: ${screenCoords.x}`">
+            <button v-for="char in activeChars" @click="checkChar(char[0])">{{char[0]}}</button>
+          </div>
         </div>
-      </template>
+      </Transition>
       <img @click="updatePos($event)" src="./assets/chars.png" />
     </div>
-    <p v-if="!chars.length">Loading</p>
-    <p v-else>{{chars}}</p>
     <button @click="getDocument">Get Doc</button>
     <button @click="addScore">Add score</button>
-
-    <p v-if="doc">{{doc}}</p>
+    <button @click="startTimer">Start Time</button>
+    <button @click="stopTimer">Stop Time</button>
   </div>
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
-}
+<style>
+  .v-enter-active,
+  .v-leave-active {
+    transition: all 0.2s ease;
+  }
+  .v-enter-from {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  .v-leave-to {
+    opacity: 0;
+    translate: 0 10px;
+  }
 </style>

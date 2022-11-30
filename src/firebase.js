@@ -32,8 +32,8 @@ const firebaseConfig = {
   }
 
   export const useAddNewScore = async ({time = 0, name = 'test'} = {}) => {
-    const citiesRef = collection(db, 'highscores');
-    await addDoc(citiesRef, {
+    const scoresRef = collection(db, 'highscores');
+    await addDoc(scoresRef, {
       time,
       name,
     });
