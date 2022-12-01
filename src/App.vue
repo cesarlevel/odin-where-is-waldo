@@ -1,5 +1,6 @@
 <script>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { CharModel } from './models/char-model';
 import { useLoadChars, useGetDoc, useAddNewScore } from './firebase';
 
 export default {
@@ -23,7 +24,7 @@ export default {
     });
 
     const activeChars = computed(() => {
-      return Object.entries(chars.value).filter(char => !char[1].found);
+      return chars.value.filter(({found}) => !found);
     });
 
     const getCharImageUrl = name => {
@@ -32,14 +33,7 @@ export default {
 
     onMounted(async () => {
       const set = await useLoadChars();
-      chars.value = set.reduce((a, v) => (
-        {...a,
-          [v.name]: {
-            pos: v.pos,
-            found: false,
-            description: v.description,
-          }
-        }), {});
+      chars.value = set.map(item => new CharModel(item));
     });
 
     function updatePos({offsetX, offsetY}) {
@@ -48,14 +42,15 @@ export default {
       mouseY.value = offsetY;
     }
 
-    function checkChar(char){
-      if (chars.value?.[char]) {
-        const [x, y] = chars.value[char].pos;
+    function checkChar(charName){
+      const charIndex = chars.value.findIndex(({name}) => name === charName);
+      if (charIndex > -1) {
+        const [x, y] = chars.value[charIndex].pos;
         const check = (x > mouseX.value - 40 && x < mouseX.value + 40)
           && (y > mouseY.value - 40 && y < mouseY.value + 40)
         hit.value = check;
         if (check) {
-          chars.value[char].found = true;
+          chars.value[charIndex].found = true;
         }
       }
       showCharPicker.value = false;
@@ -102,8 +97,8 @@ export default {
 <template>
   <div>
     <ul class="chars-thumbnails">
-      <li v-for="(char, index) in Object.keys(chars)">
-        <img :class="{'is-found': chars[char].found}" :src="getCharImageUrl(char)" :key="index" />
+      <li v-for="(char, index) in chars">
+        <img :class="{'is-found': char.found}" :src="getCharImageUrl(char.name)" :key="index" />
       </li>
     </ul>
     <div class="image-container">
@@ -111,7 +106,7 @@ export default {
         <div v-if="showCharPicker">
           <div @click="showCharPicker = false" class="image-blocker"></div>
           <div class="box" :style="`top: ${screenCoords.y}; left: ${screenCoords.x}`">
-            <button v-for="char in activeChars" @click="checkChar(char[0])">{{char[0]}}</button>
+            <button v-for="char in activeChars" @click="checkChar(char.name)">{{char.name}}</button>
           </div>
         </div>
       </Transition>
